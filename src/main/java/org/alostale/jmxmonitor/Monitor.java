@@ -2,6 +2,7 @@ package org.alostale.jmxmonitor;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -85,17 +86,25 @@ public class Monitor {
 
   private void execute() {
     MBeanServerConnection connection = getBeanServerConnection();
+
+    System.out.print("timestamp\t");
+    for (String att : attributes) {
+      System.out.print(att + "\t");
+    }
+    System.out.print("\n");
+
     try {
       ObjectName beanName = new ObjectName(bean);
-
+      System.out.print(new Date().getTime() + "\t");
       for (String att : attributes) {
         try {
-          System.out.println(bean + " " + att + ": " + connection.getAttribute(beanName, att));
+          System.out.print(connection.getAttribute(beanName, att) + "\t");
         } catch (AttributeNotFoundException | InstanceNotFoundException | MBeanException
             | ReflectionException | IOException e) {
           e.printStackTrace();
         }
       }
+      System.out.print("\n");
     } catch (MalformedObjectNameException e1) {
       e1.printStackTrace();
     }

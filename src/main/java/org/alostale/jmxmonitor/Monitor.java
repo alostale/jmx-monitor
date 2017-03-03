@@ -1,10 +1,18 @@
 package org.alostale.jmxmonitor;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import javax.management.AttributeNotFoundException;
+import javax.management.InstanceNotFoundException;
+import javax.management.MBeanException;
 import javax.management.MBeanServerConnection;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
+import javax.management.ReflectionException;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
@@ -19,6 +27,8 @@ import sun.tools.jconsole.LocalVirtualMachine;
 
 public class Monitor {
   private int pid;
+  private String bean;
+  private List<String> attributes;
 
   public static void main(String[] args) throws ParseException {
     Monitor monitor = new Monitor(args);
@@ -28,6 +38,8 @@ public class Monitor {
   public Monitor(String[] args) {
     CommandLine params = getCliOptions(args);
     pid = Integer.parseInt(params.getOptionValue("pid"));
+    bean = params.getOptionValue("bean");
+    attributes = Arrays.asList(params.getOptionValues("attrs"));
   }
 
   private CommandLine getCliOptions(String[] args) {
@@ -46,8 +58,14 @@ public class Monitor {
 
     Option pidOption = Option.builder("p").longOpt("pid").argName("pid").type(Integer.class)
         .hasArg().required().desc("Java process id to monitor").build();
+    Option beanOption = Option.builder("b").longOpt("bean").argName("bean").hasArg().required()
+        .desc("Name of the bean to monitor").build();
+    Option attributesOption = Option.builder("a").longOpt("attrs").argName("attributes").hasArgs()
+        .required().desc("Names of attributes in bean to monitor").build();
 
     ops.addOption(pidOption);
+    ops.addOption(beanOption);
+    ops.addOption(attributesOption);
 
     if (showHelp) {
       HelpFormatter formatter = new HelpFormatter();
@@ -67,6 +85,20 @@ public class Monitor {
 
   private void execute() {
     MBeanServerConnection connection = getBeanServerConnection();
+    try {
+      ObjectName beanName = new ObjectName(bean);
+
+      for (String att : attributes) {
+        try {
+          System.out.println(bean + " " + att + ": " + connection.getAttribute(beanName, att));
+        } catch (AttributeNotFoundException | InstanceNotFoundException | MBeanException
+            | ReflectionException | IOException e) {
+          e.printStackTrace();
+        }
+      }
+    } catch (MalformedObjectNameException e1) {
+      e1.printStackTrace();
+    }
   }
 
   private MBeanServerConnection getBeanServerConnection() {

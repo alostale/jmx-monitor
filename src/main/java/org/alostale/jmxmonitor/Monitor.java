@@ -30,6 +30,7 @@ public class Monitor {
   private int pid;
   private String bean;
   private List<String> attributes;
+  private long interval;
 
   public static void main(String[] args) throws ParseException {
     Monitor monitor = new Monitor(args);
@@ -41,6 +42,11 @@ public class Monitor {
     pid = Integer.parseInt(params.getOptionValue("pid"));
     bean = params.getOptionValue("bean");
     attributes = Arrays.asList(params.getOptionValues("attrs"));
+    if (params.hasOption("interval")) {
+      interval = Long.parseLong(params.getOptionValue("interval"));
+    } else {
+      interval = 1_000L;
+    }
   }
 
   private CommandLine getCliOptions(String[] args) {
@@ -63,10 +69,13 @@ public class Monitor {
         .desc("Name of the bean to monitor").build();
     Option attributesOption = Option.builder("a").longOpt("attrs").argName("attributes").hasArgs()
         .required().desc("Names of attributes in bean to monitor").build();
+    Option intervalOption = Option.builder("i").longOpt("interval").argName("interval").hasArg()
+        .desc("Interval in ms to get next set of values").build();
 
     ops.addOption(pidOption);
     ops.addOption(beanOption);
     ops.addOption(attributesOption);
+    ops.addOption(intervalOption);
 
     if (showHelp) {
       HelpFormatter formatter = new HelpFormatter();
@@ -95,17 +104,20 @@ public class Monitor {
 
     try {
       ObjectName beanName = new ObjectName(bean);
-      System.out.print(new Date().getTime() + "\t");
-      for (String att : attributes) {
-        try {
-          System.out.print(connection.getAttribute(beanName, att) + "\t");
-        } catch (AttributeNotFoundException | InstanceNotFoundException | MBeanException
-            | ReflectionException | IOException e) {
-          e.printStackTrace();
+      while (true) {
+        System.out.print(new Date().getTime() + "\t");
+        for (String att : attributes) {
+          try {
+            System.out.print(connection.getAttribute(beanName, att) + "\t");
+          } catch (AttributeNotFoundException | InstanceNotFoundException | MBeanException
+              | ReflectionException | IOException e) {
+            e.printStackTrace();
+          }
         }
+        System.out.print("\n");
+        Thread.sleep(interval);
       }
-      System.out.print("\n");
-    } catch (MalformedObjectNameException e1) {
+    } catch (MalformedObjectNameException | InterruptedException e1) {
       e1.printStackTrace();
     }
   }

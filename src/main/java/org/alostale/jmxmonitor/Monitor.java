@@ -1,6 +1,13 @@
 package org.alostale.jmxmonitor;
 
+import static java.nio.file.StandardOpenOption.APPEND;
+import static java.nio.file.StandardOpenOption.CREATE;
+
+import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -31,6 +38,7 @@ public class Monitor {
   private String bean;
   private List<String> attributes;
   private long interval;
+  private BufferedOutputStream fileStream;
 
   public static void main(String[] args) throws ParseException {
     Monitor monitor = new Monitor(args);
@@ -46,6 +54,14 @@ public class Monitor {
       interval = Long.parseLong(params.getOptionValue("interval"));
     } else {
       interval = 1_000L;
+    }
+    if (params.hasOption("output")) {
+      Path p = Paths.get(params.getOptionValue("output"));
+      try {
+        fileStream = new BufferedOutputStream(Files.newOutputStream(p, CREATE, APPEND));
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
     }
   }
 
@@ -71,11 +87,14 @@ public class Monitor {
         .required().desc("Names of attributes in bean to monitor").build();
     Option intervalOption = Option.builder("i").longOpt("interval").argName("interval").hasArg()
         .desc("Interval in ms to get next set of values").build();
+    Option outputOption = Option.builder("o").longOpt("output").argName("output").hasArg()
+        .desc("output file").build();
 
     ops.addOption(pidOption);
     ops.addOption(beanOption);
     ops.addOption(attributesOption);
     ops.addOption(intervalOption);
+    ops.addOption(outputOption);
 
     if (showHelp) {
       HelpFormatter formatter = new HelpFormatter();
@@ -96,30 +115,52 @@ public class Monitor {
   private void execute() {
     MBeanServerConnection connection = getBeanServerConnection();
 
-    System.out.print("timestamp\t");
+    String header = "timestamp\t";
     for (String att : attributes) {
-      System.out.print(att + "\t");
+      header += att + "\t";
     }
+
+    writeLine(header);
     System.out.print("\n");
 
     try {
       ObjectName beanName = new ObjectName(bean);
       while (true) {
-        System.out.print(new Date().getTime() + "\t");
+        String line = new Date().getTime() + "\t";
         for (String att : attributes) {
           try {
-            System.out.print(connection.getAttribute(beanName, att) + "\t");
+            line += connection.getAttribute(beanName, att) + "\t";
           } catch (AttributeNotFoundException | InstanceNotFoundException | MBeanException
               | ReflectionException | IOException e) {
             e.printStackTrace();
           }
         }
-        System.out.print("\n");
+        writeLine(line);
+        System.out.print("\r");
         Thread.sleep(interval);
       }
     } catch (MalformedObjectNameException | InterruptedException e1) {
       e1.printStackTrace();
     }
+  }
+
+  private void writeLine(String line) {
+    System.out.print(line);
+
+    String csvLine = line.replace("\t", ",");
+    if (csvLine.endsWith(",")) {
+      csvLine = csvLine.substring(0, csvLine.length() - 1);
+    }
+    csvLine += "\n";
+    if (fileStream != null) {
+      try {
+        fileStream.write(csvLine.getBytes(), 0, csvLine.length());
+        fileStream.flush();
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
+
   }
 
   private MBeanServerConnection getBeanServerConnection() {

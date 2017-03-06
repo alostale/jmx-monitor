@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -36,8 +37,8 @@ import sun.tools.jconsole.LocalVirtualMachine;
 
 public class Monitor {
   private int pid;
-  private String bean;
-  private List<String> attributes;
+  private String bean = "";
+  private List<String> attributes = new ArrayList<>();
   private long interval;
   private BufferedOutputStream fileStream;
   private boolean logMemory = false;
@@ -50,8 +51,10 @@ public class Monitor {
   public Monitor(String[] args) {
     CommandLine params = getCliOptions(args);
     pid = Integer.parseInt(params.getOptionValue("pid"));
-    bean = params.getOptionValue("bean");
-    attributes = Arrays.asList(params.getOptionValues("attrs"));
+    if (params.hasOption("bean") && params.hasOption("attrs")) {
+      bean = params.getOptionValue("bean");
+      attributes = Arrays.asList(params.getOptionValues("attrs"));
+    }
     if (params.hasOption("interval")) {
       interval = Long.parseLong(params.getOptionValue("interval"));
     } else {
@@ -86,10 +89,10 @@ public class Monitor {
 
     Option pidOption = Option.builder("p").longOpt("pid").argName("pid").type(Integer.class)
         .hasArg().required().desc("Java process id to monitor").build();
-    Option beanOption = Option.builder("b").longOpt("bean").argName("bean").hasArg().required()
+    Option beanOption = Option.builder("b").longOpt("bean").argName("bean").hasArg()
         .desc("Name of the bean to monitor").build();
     Option attributesOption = Option.builder("a").longOpt("attrs").argName("attributes").hasArgs()
-        .required().desc("Names of attributes in bean to monitor").build();
+        .desc("Names of attributes in bean to monitor").build();
     Option intervalOption = Option.builder("i").longOpt("interval").argName("interval").hasArg()
         .desc("Interval in ms to get next set of values").build();
     Option outputOption = Option.builder("o").longOpt("output").argName("output").hasArg()

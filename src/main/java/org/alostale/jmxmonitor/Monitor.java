@@ -21,6 +21,7 @@ import javax.management.MBeanServerConnection;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import javax.management.ReflectionException;
+import javax.management.openmbean.CompositeDataSupport;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
@@ -39,6 +40,7 @@ public class Monitor {
   private List<String> attributes;
   private long interval;
   private BufferedOutputStream fileStream;
+  private boolean logMemory = false;
 
   public static void main(String[] args) throws ParseException {
     Monitor monitor = new Monitor(args);
@@ -62,6 +64,9 @@ public class Monitor {
       } catch (IOException e) {
         e.printStackTrace();
       }
+    }
+    if (params.hasOption("memory")) {
+      logMemory = true;
     }
   }
 
@@ -89,12 +94,15 @@ public class Monitor {
         .desc("Interval in ms to get next set of values").build();
     Option outputOption = Option.builder("o").longOpt("output").argName("output").hasArg()
         .desc("output file").build();
+    Option memOption = Option.builder("m").longOpt("memory").argName("memory")
+        .desc("logs used heap").build();
 
     ops.addOption(pidOption);
     ops.addOption(beanOption);
     ops.addOption(attributesOption);
     ops.addOption(intervalOption);
     ops.addOption(outputOption);
+    ops.addOption(memOption);
 
     if (showHelp) {
       HelpFormatter formatter = new HelpFormatter();
@@ -116,6 +124,11 @@ public class Monitor {
     MBeanServerConnection connection = getBeanServerConnection();
 
     String header = "timestamp\t";
+    if (logMemory) {
+      header += "HeapMemoryUsage\t";
+      header += "GCCollectionCount\t";
+      header += "GCCollectionTime\t";
+    }
     for (String att : attributes) {
       header += att + "\t";
     }
@@ -125,15 +138,23 @@ public class Monitor {
 
     try {
       ObjectName beanName = new ObjectName(bean);
+      ObjectName memoryBeanName = new ObjectName("java.lang:type=Memory");
+      ObjectName gcBeanName = new ObjectName("java.lang:type=GarbageCollector,name=PS MarkSweep");
       while (true) {
         String line = new Date().getTime() + "\t";
-        for (String att : attributes) {
-          try {
-            line += connection.getAttribute(beanName, att) + "\t";
-          } catch (AttributeNotFoundException | InstanceNotFoundException | MBeanException
-              | ReflectionException | IOException e) {
-            e.printStackTrace();
+        try {
+          if (logMemory) {
+            line += ((CompositeDataSupport) connection.getAttribute(memoryBeanName,
+                "HeapMemoryUsage")).get("used") + "\t";
+            line += connection.getAttribute(gcBeanName, "CollectionCount") + "\t";
+            line += connection.getAttribute(gcBeanName, "CollectionTime") + "\t";
           }
+          for (String att : attributes) {
+            line += connection.getAttribute(beanName, att) + "\t";
+          }
+        } catch (AttributeNotFoundException | InstanceNotFoundException | MBeanException
+            | ReflectionException | IOException e) {
+          e.printStackTrace();
         }
         writeLine(line);
         System.out.print("\r");

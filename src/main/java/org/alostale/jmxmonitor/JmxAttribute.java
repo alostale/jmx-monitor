@@ -71,8 +71,8 @@ public class JmxAttribute {
           continue;
         }
         String[] config = configLine.split(" ");
-        String beanName = config[0];
-        String attributeName = config[1];
+        String beanName = config[0].trim();
+        String attributeName = config[1].trim();
         String alias = config.length > 2 ? config[2] : null;
         attributes.add(new JmxAttribute(beanName, attributeName, alias));
       }

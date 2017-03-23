@@ -1,13 +1,7 @@
 package org.alostale.jmxmonitor;
 
-import static java.nio.file.StandardOpenOption.APPEND;
-import static java.nio.file.StandardOpenOption.CREATE;
-
 import java.io.BufferedOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -26,6 +20,9 @@ import javax.management.openmbean.CompositeDataSupport;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
+import org.alostale.jmxmonitor.writer.CsvWriter;
+import org.alostale.jmxmonitor.writer.OutputWriter;
+import org.alostale.jmxmonitor.writer.StdinWriter;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -43,6 +40,8 @@ public class Monitor {
   private BufferedOutputStream fileStream;
   private boolean logMemory = false;
 
+  private List<OutputWriter> writers = new ArrayList<>(2);
+
   public static void main(String[] args) throws ParseException {
     Monitor monitor = new Monitor(args);
     monitor.execute();
@@ -50,6 +49,7 @@ public class Monitor {
 
   public Monitor(String[] args) {
     CommandLine params = getCliOptions(args);
+    writers.add(new StdinWriter());
     pid = Integer.parseInt(params.getOptionValue("pid"));
     if (params.hasOption("bean") && params.hasOption("attrs")) {
       bean = params.getOptionValue("bean");
@@ -61,12 +61,7 @@ public class Monitor {
       interval = 1_000L;
     }
     if (params.hasOption("output")) {
-      Path p = Paths.get(params.getOptionValue("output"));
-      try {
-        fileStream = new BufferedOutputStream(Files.newOutputStream(p, CREATE, APPEND));
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
+      writers.add(new CsvWriter(params.getOptionValue("output")));
     }
     if (params.hasOption("memory")) {
       logMemory = true;
@@ -168,35 +163,9 @@ public class Monitor {
   }
 
   private void writeLine(String line) {
-    cleanLine();
-
-    System.out.print(line);
-    String csvLine = line.replace("\t", ",");
-    if (csvLine.endsWith(",")) {
-      csvLine = csvLine.substring(0, csvLine.length() - 1);
+    for (OutputWriter writer : writers) {
+      writer.writeLine(line);
     }
-    csvLine += "\n";
-    if (fileStream != null) {
-      try {
-        fileStream.write(csvLine.getBytes(), 0, csvLine.length());
-        fileStream.flush();
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-    }
-    System.out.print("\r");
-  }
-
-  private void cleanLine() {
-    int numOfCols;
-    try {
-      numOfCols = Integer.parseInt(System.getenv("COLUMNS"));
-    } catch (Exception e) {
-      numOfCols = 80;
-    }
-    char[] charArray = new char[numOfCols];
-    Arrays.fill(charArray, ' ');
-    System.out.print(new String(charArray) + "\r");
   }
 
   private MBeanServerConnection getBeanServerConnection() {

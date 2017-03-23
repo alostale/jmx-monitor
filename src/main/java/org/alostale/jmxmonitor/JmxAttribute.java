@@ -73,11 +73,13 @@ public class JmxAttribute {
     List<JmxAttribute> attributes = new ArrayList<>();
     try {
       for (String configLine : Files.readAllLines(Paths.get(configFilePath))) {
-        configLine = configLine.trim();
-        if (configLine.startsWith("#")) {
+        configLine = configLine.trim().replaceAll("\\s\\s+", " ");
+        String[] config = configLine.split(" ");
+        if (configLine.startsWith("#") || config.length < 2) {
+          System.out.println(configLine);
           continue;
         }
-        String[] config = configLine.split(" ");
+
         String beanName = config[0].trim();
         String attributeName = config[1].trim();
         String alias = config.length > 2 ? config[2] : null;

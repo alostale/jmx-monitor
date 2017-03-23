@@ -160,7 +160,6 @@ public class Monitor {
           e.printStackTrace();
         }
         writeLine(line);
-        System.out.print("\r");
         Thread.sleep(interval);
       }
     } catch (MalformedObjectNameException | InterruptedException e1) {
@@ -169,8 +168,15 @@ public class Monitor {
   }
 
   private void writeLine(String line) {
-    System.out.print(line);
+    cleanLine();
+    int numOfCols;
+    try {
+      numOfCols = Integer.parseInt(System.getenv("COLUMNS"));
+    } catch (Exception e) {
+      numOfCols = 80;
+    }
 
+    System.out.print(line);
     String csvLine = line.replace("\t", ",");
     if (csvLine.endsWith(",")) {
       csvLine = csvLine.substring(0, csvLine.length() - 1);
@@ -184,7 +190,19 @@ public class Monitor {
         e.printStackTrace();
       }
     }
+    System.out.print("\r");
+  }
 
+  private void cleanLine() {
+    int numOfCols;
+    try {
+      numOfCols = Integer.parseInt(System.getenv("COLUMNS"));
+    } catch (Exception e) {
+      numOfCols = 80;
+    }
+    char[] charArray = new char[numOfCols];
+    Arrays.fill(charArray, ' ');
+    System.out.print(new String(charArray) + "\r");
   }
 
   private MBeanServerConnection getBeanServerConnection() {

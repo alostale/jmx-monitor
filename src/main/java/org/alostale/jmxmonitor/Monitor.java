@@ -8,14 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import javax.management.AttributeNotFoundException;
-import javax.management.InstanceNotFoundException;
-import javax.management.MBeanException;
 import javax.management.MBeanServerConnection;
 import javax.management.MalformedObjectNameException;
-import javax.management.ObjectName;
-import javax.management.ReflectionException;
-import javax.management.openmbean.CompositeDataSupport;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
@@ -33,10 +27,8 @@ import sun.tools.jconsole.LocalVirtualMachine;
 
 public class Monitor {
   private int pid;
-  private String bean = "";
-  private List<String> attributes = new ArrayList<>();
+  private List<JmxAttribute> attributes = new ArrayList<>();
   private long interval;
-  private boolean logMemory = false;
 
   private List<OutputWriter> writers = new ArrayList<>(2);
 
@@ -49,9 +41,20 @@ public class Monitor {
     CommandLine params = getCliOptions(args);
     writers.add(new StdinWriter());
     pid = Integer.parseInt(params.getOptionValue("pid"));
+    if (params.hasOption("memory")) {
+      try {
+        attributes.add(new UsedMemory());
+        String gcBeanName = "java.lang:type=GarbageCollector,name=PS MarkSweep";
+        attributes.add(new JmxAttribute(gcBeanName, "CollectionCount", "GCCollectionCount"));
+        attributes.add(new JmxAttribute(gcBeanName, "CollectionTime", "GCCollectionTime"));
+      } catch (MalformedObjectNameException e) {
+        e.printStackTrace();
+      }
+    }
+
     if (params.hasOption("bean") && params.hasOption("attrs")) {
-      bean = params.getOptionValue("bean");
-      attributes = Arrays.asList(params.getOptionValues("attrs"));
+      attributes = JmxAttribute.getAttributesForBean(params.getOptionValue("bean"),
+          Arrays.asList(params.getOptionValues("attrs")));
     }
     if (params.hasOption("interval")) {
       interval = Long.parseLong(params.getOptionValue("interval"));
@@ -60,9 +63,6 @@ public class Monitor {
     }
     if (params.hasOption("output")) {
       writers.add(new CsvWriter(params.getOptionValue("output")));
-    }
-    if (params.hasOption("memory")) {
-      logMemory = true;
     }
   }
 
@@ -120,43 +120,26 @@ public class Monitor {
     MBeanServerConnection connection = getBeanServerConnection();
 
     String header = "timestamp\t";
-    if (logMemory) {
-      header += "HeapMemoryUsage\t";
-      header += "GCCollectionCount\t";
-      header += "GCCollectionTime\t";
-    }
-    for (String att : attributes) {
-      header += att + "\t";
+
+    for (JmxAttribute att : attributes) {
+      header += att.getHeader() + "\t";
     }
 
     writeLine(header);
     System.out.print("\n");
 
-    try {
-      ObjectName beanName = new ObjectName(bean);
-      ObjectName memoryBeanName = new ObjectName("java.lang:type=Memory");
-      ObjectName gcBeanName = new ObjectName("java.lang:type=GarbageCollector,name=PS MarkSweep");
-      while (true) {
-        String line = new Date().getTime() + "\t";
-        try {
-          if (logMemory) {
-            line += ((CompositeDataSupport) connection.getAttribute(memoryBeanName,
-                "HeapMemoryUsage")).get("used") + "\t";
-            line += connection.getAttribute(gcBeanName, "CollectionCount") + "\t";
-            line += connection.getAttribute(gcBeanName, "CollectionTime") + "\t";
-          }
-          for (String att : attributes) {
-            line += connection.getAttribute(beanName, att) + "\t";
-          }
-        } catch (AttributeNotFoundException | InstanceNotFoundException | MBeanException
-            | ReflectionException | IOException e) {
-          e.printStackTrace();
-        }
-        writeLine(line);
-        Thread.sleep(interval);
+    while (true) {
+      String line = new Date().getTime() + "\t";
+      for (JmxAttribute att : attributes) {
+        line += att.getValue(connection) + "\t";
       }
-    } catch (MalformedObjectNameException | InterruptedException e1) {
-      e1.printStackTrace();
+
+      writeLine(line);
+      try {
+        Thread.sleep(interval);
+      } catch (InterruptedException e1) {
+        e1.printStackTrace();
+      }
     }
   }
 

@@ -1,6 +1,5 @@
 package org.alostale.jmxmonitor;
 
-import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,7 +36,6 @@ public class Monitor {
   private String bean = "";
   private List<String> attributes = new ArrayList<>();
   private long interval;
-  private BufferedOutputStream fileStream;
   private boolean logMemory = false;
 
   private List<OutputWriter> writers = new ArrayList<>(2);

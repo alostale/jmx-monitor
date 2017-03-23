@@ -53,8 +53,11 @@ public class Monitor {
     }
 
     if (params.hasOption("bean") && params.hasOption("attrs")) {
-      attributes = JmxAttribute.getAttributesForBean(params.getOptionValue("bean"),
-          Arrays.asList(params.getOptionValues("attrs")));
+      attributes.addAll(JmxAttribute.getAttributesForBean(params.getOptionValue("bean"),
+          Arrays.asList(params.getOptionValues("attrs"))));
+    }
+    if (params.hasOption("config")) {
+      attributes.addAll(JmxAttribute.getAttributesFromConfig(params.getOptionValue("config")));
     }
     if (params.hasOption("interval")) {
       interval = Long.parseLong(params.getOptionValue("interval"));
@@ -64,6 +67,7 @@ public class Monitor {
     if (params.hasOption("output")) {
       writers.add(new CsvWriter(params.getOptionValue("output")));
     }
+
   }
 
   private CommandLine getCliOptions(String[] args) {
@@ -92,6 +96,8 @@ public class Monitor {
         .desc("output file").build();
     Option memOption = Option.builder("m").longOpt("memory").argName("memory")
         .desc("logs used heap").build();
+    Option configOption = Option.builder("c").longOpt("config").argName("config").hasArg()
+        .desc("config file including an attribute per line").build();
 
     ops.addOption(pidOption);
     ops.addOption(beanOption);
@@ -99,6 +105,7 @@ public class Monitor {
     ops.addOption(intervalOption);
     ops.addOption(outputOption);
     ops.addOption(memOption);
+    ops.addOption(configOption);
 
     if (showHelp) {
       HelpFormatter formatter = new HelpFormatter();

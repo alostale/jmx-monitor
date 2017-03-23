@@ -1,6 +1,8 @@
 package org.alostale.jmxmonitor;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,10 +56,30 @@ public class JmxAttribute {
       try {
         attributes.add(new JmxAttribute(beanName, attName));
       } catch (MalformedObjectNameException e) {
-        // TODO Auto-generated catch block
         e.printStackTrace();
       }
     }
+    return attributes;
+  }
+
+  public static List<JmxAttribute> getAttributesFromConfig(String configFilePath) {
+    List<JmxAttribute> attributes = new ArrayList<>();
+    try {
+      for (String configLine : Files.readAllLines(Paths.get(configFilePath))) {
+        configLine = configLine.trim();
+        if (configLine.startsWith("#")) {
+          continue;
+        }
+        String[] config = configLine.split(" ");
+        String beanName = config[0];
+        String attributeName = config[1];
+        String alias = config.length > 2 ? config[2] : null;
+        attributes.add(new JmxAttribute(beanName, attributeName, alias));
+      }
+    } catch (IOException | MalformedObjectNameException e) {
+      e.printStackTrace();
+    }
+
     return attributes;
   }
 }

@@ -25,7 +25,14 @@ public class JmxAttribute {
 
   public JmxAttribute(String bean, String attribute, String alias)
       throws MalformedObjectNameException {
-    beanName = new ObjectName(bean);
+    System.out.println("bean: " + bean + " - attribute: " + attribute
+        + ((alias != null && !alias.isEmpty()) ? (" - alias: " + alias) : ""));
+    try {
+      beanName = new ObjectName(bean);
+    } catch (MalformedObjectNameException e) {
+      System.err.println("Malformed bean name: " + bean);
+      throw (e);
+    }
     attributeName = attribute;
     this.alias = (alias == null || alias.isEmpty()) ? attributeName : alias;
   }

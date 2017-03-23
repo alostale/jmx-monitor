@@ -169,12 +169,6 @@ public class Monitor {
 
   private void writeLine(String line) {
     cleanLine();
-    int numOfCols;
-    try {
-      numOfCols = Integer.parseInt(System.getenv("COLUMNS"));
-    } catch (Exception e) {
-      numOfCols = 80;
-    }
 
     System.out.print(line);
     String csvLine = line.replace("\t", ",");

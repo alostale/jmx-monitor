@@ -26,7 +26,7 @@ import org.apache.commons.cli.ParseException;
 import sun.tools.jconsole.LocalVirtualMachine;
 
 public class Monitor {
-  private int pid;
+  private int pid = -1;
   private List<JmxAttribute> attributes = new ArrayList<>();
   private long interval;
 
@@ -40,7 +40,9 @@ public class Monitor {
   public Monitor(String[] args) {
     CommandLine params = getCliOptions(args);
     writers.add(new StdinWriter());
-    pid = Integer.parseInt(params.getOptionValue("pid"));
+    if (params.hasOption("pid")) {
+      pid = Integer.parseInt(params.getOptionValue("pid"));
+    }
     if (params.hasOption("memory")) {
       try {
         attributes.add(new UsedMemory());
@@ -85,7 +87,7 @@ public class Monitor {
     }
 
     Option pidOption = Option.builder("p").longOpt("pid").argName("pid").type(Integer.class)
-        .hasArg().required().desc("Java process id to monitor").build();
+        .hasArg().desc("Java process id to monitor").build();
     Option beanOption = Option.builder("b").longOpt("bean").argName("bean").hasArg()
         .desc("Name of the bean to monitor").build();
     Option attributesOption = Option.builder("a").longOpt("attrs").argName("attributes").hasArgs()
@@ -160,9 +162,31 @@ public class Monitor {
     Map<Integer, LocalVirtualMachine> allJvms = LocalVirtualMachine.getAllVirtualMachines();
     MBeanServerConnection connection = null;
     try {
+      if (pid == -1) {
+        System.out.println("Looking for Tomcat to connect...");
+        List<Entry<Integer, LocalVirtualMachine>> candidates = new ArrayList<>();
+        for (Entry<Integer, LocalVirtualMachine> jvm : allJvms.entrySet()) {
+          if (jvm.getValue().displayName().contains("org.apache.catalina.startup.Bootstrap")) {
+            candidates.add(jvm);
+          }
+        }
+        switch (candidates.size()) {
+        case 0:
+          System.out.println("Didn't find any Tomcat instance");
+        case 1:
+          pid = candidates.get(0).getKey();
+          System.out.println("Found Tomcat instance with pid " + pid);
+          break;
+        default:
+          System.out.println("Found more than one Tomcat:");
+          break;
+        }
+      }
       if (!allJvms.containsKey(pid)) {
-        System.err.println("pid " + pid + " not found");
-        System.err.println("  detected jvms are ");
+        if (pid != -1) {
+          System.err.println("pid " + pid + " not found");
+          System.err.println("  detected jvms are ");
+        }
         for (Entry<Integer, LocalVirtualMachine> jvm : allJvms.entrySet()) {
           System.err.println("    * " + jvm.getKey() + "\t- " + jvm.getValue().displayName());
         }

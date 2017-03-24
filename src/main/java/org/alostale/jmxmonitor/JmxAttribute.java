@@ -1,6 +1,7 @@
 package org.alostale.jmxmonitor;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -72,7 +73,8 @@ public class JmxAttribute {
   public static List<JmxAttribute> getAttributesFromConfig(String configFilePath) {
     List<JmxAttribute> attributes = new ArrayList<>();
     try {
-      for (String configLine : Files.readAllLines(Paths.get(configFilePath))) {
+      for (String configLine : Files.readAllLines(Paths.get(configFilePath),
+          StandardCharsets.UTF_8)) {
         configLine = configLine.trim().replaceAll("\\s\\s+", " ");
         String[] config = configLine.split(" ");
         if (configLine.startsWith("#") || config.length < 2) {

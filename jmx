@@ -1,0 +1,3 @@
+#!/bin/sh
+jmxHome="$(dirname "$(readlink -f "$0")")"
+java -cp $JAVA_HOME/lib/tools.jar:$JAVA_HOME/lib/jconsole.jar:$jmxHome/target/jmxmonitor-0.0.1-SNAPSHOT-jar-with-dependencies.jar org.alostale.jmxmonitor.Monitor $*

@@ -1,0 +1,5 @@
+# Pool
+Openbravo:name=Pool-DEFAULT,context=openbravo   Active 
+Openbravo:name=Pool-DEFAULT,context=openbravo   Idle 
+Openbravo:name=Pool-DEFAULT,context=openbravo   Size 
+Openbravo:name=Pool-DEFAULT,context=openbravo   WaitCount
